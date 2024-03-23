@@ -1,0 +1,103 @@
+---
+title: "Exercise №3"
+format:
+  md:
+    output-file: README.md
+editor: visual
+---
+
+## Цель работы
+
+1.  Изучить возможности технологии Apache Arrow для обработки и анализ больших данных
+
+2.  Получить навыки применения Arrow совместно с языком программирования R
+
+3.  Получить навыки анализа метаинфомации о сетевом трафике
+
+4.  Получить навыки применения облачных технологий хранения, подготовки и анализа данных: Yandex Object Storage, Rstudio Server
+
+## Исходные данные
+
+1.  ОС Windows
+2.  OpenSSH Client
+3.  Apache Arrow
+4.  RStudio Server
+5.  Yandex Object Storage
+
+## Ход работы
+
+### Обеспечение доступа к датасету arrow-datasets/tm_data.pqt
+
+```{r}
+library(arrow)
+library(dplyr)
+library(tidyverse)
+```
+
+```{r}
+dir.create("data", showWarnings = FALSE)
+```
+
+```{r}
+curl::multi_download(
+  "https://storage.yandexcloud.net/arrow-datasets/tm_data.pqt",
+  "data/tm_data.pqt",
+  resume = TRUE
+)
+
+```
+
+### Чтение датасета
+
+```{r}
+raw_df <- read_parquet("data/tm_data.pqt", as_data_frame = FALSE)
+
+raw_df %>% glimpse()
+```
+
+### Задание 1
+
+#### Очистка датасета от внутренних обращений. Группировка по уникальным отправителям. Нахождение максимального объема отправленных данных
+
+```{r}
+nolegitimate_flow <- raw_df %>% 
+  select(src, dst, bytes) %>% 
+  filter(!str_detect(dst, '1[2-4].*')) %>% 
+  select(src, bytes) %>% group_by(src) %>% summarize(sum_bytes = sum(bytes)) %>% 
+  filter(sum_bytes == max(sum_bytes))
+nolegitimate_flow |> collect()
+
+```
+
+### Задание 2
+
+```{r}
+filter_df <- raw_df %>%
+      select(timestamp, src, dst, bytes) %>%
+      mutate(external_flow = (str_detect(src, '1[2-4].*') & !str_detect(dst, '1[2-4].*')),time = hour(as_datetime(timestamp/1000))) %>%
+      filter(external_flow == TRUE, time >= 0 & time <= 24) %>% group_by(time) %>%
+      summarise(flow_time = n()) %>% arrange(desc(flow_time))
+
+filter_df <- filter_df %>% filter(flow_time >= mean(flow_time))
+
+filter_df |> collect()
+```
+
+#### Определяем рабочие часы: Учитывая нагрузку на трафик, рабочее время: 16:00-24:00
+
+```{r}
+answer_df <- raw_df %>% mutate(time = hour(as_datetime(timestamp/1000))) %>% 
+  filter(!str_detect(src, "^13.37.84.125")) %>% 
+  filter(str_detect(src, '1[2-4].*'))  %>% filter(!str_detect(dst, '1[2-4].*'))  %>%
+  filter(time >= 1 & time <= 15) %>% 
+  group_by(src) %>% summarise("sum" = sum(bytes)) %>%
+  select(src,sum)
+
+answer_df <- answer_df %>% arrange(desc(sum)) %>% head(1)
+
+answer_df |> collect()
+```
+
+### Задание 3
+
+### Выводы
