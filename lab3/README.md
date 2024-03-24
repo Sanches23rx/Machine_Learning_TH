@@ -82,9 +82,9 @@ curl::multi_download(
 ```
 
     # A tibble: 1 × 10
-      success status_code resumefrom url    destfile error type  modified           
-      <lgl>         <int>      <dbl> <chr>  <chr>    <chr> <chr> <dttm>             
-    1 TRUE            200          0 https… data/tm… <NA>  appl… 2024-02-19 12:25:05
+      success status_code resumefrom url    destfile error type  modified
+      <lgl>         <int>      <dbl> <chr>  <chr>    <chr> <chr> <dttm>  
+    1 TRUE            416          0 https… /home/u… <NA>  appl… NA      
     # ℹ 2 more variables: time <dbl>, headers <list>
 
 ### Чтение датасета
@@ -181,6 +181,42 @@ answer_df |> collect()
 
 ### Задание 3
 
+#### Поиск необходимого порта
+
+``` r
+filter_df_3 <- raw_df %>% filter(!str_detect(src, "^13.37.84.125")) %>% filter(!str_detect(src, "^12.55.77.96")) %>% 
+  filter(str_detect(src, '1[2-4].*'))  %>%
+  filter(!str_detect(dst, '1[2-4].*'))  %>% select(src, bytes, port) 
+
+
+full_df <- filter_df_3 %>%  group_by(port) %>% summarise("mean_bytes"=mean(bytes), "max_bytes"=max(bytes), "sum_bytes" = sum(bytes)) %>% 
+  mutate("diff_max_mean"= max_bytes-mean_bytes) %>% arrange(desc(diff_max_mean)) %>% head(1)
+
+full_df |> collect()
+```
+
+    # A tibble: 1 × 5
+       port mean_bytes max_bytes   sum_bytes diff_max_mean
+      <int>      <dbl>     <int>     <int64>         <dbl>
+    1    37     35109.    209402 23686678923       174293.
+
+#### Поиск максимального объема пераданных данных через найденный ранее порт 37 и отправителя
+
+``` r
+answer_df_3 <- filter_df_3  %>% filter(port==37) %>% group_by(src) %>% 
+  summarise("mean_bytes"=mean(bytes)) %>% arrange(desc(mean_bytes)) %>% select(src) %>% head(1)
+answer_df_3 |> collect()
+```
+
+    # A tibble: 1 × 1
+      src         
+      <chr>       
+    1 14.31.107.42
+
 ### Выводы
 
-Изучил возможности технологии Apache Arrow для обработки и анализа больших данных, получил навыки применения Arrow совместно с языком программирования R. Получил навыки анализа метаинфомации о сетевом трафике. Получил навыки применения облачных технологий хранения, подготовки и анализа данных: Yandex Object Storage, Rstudio Server
+Изучил возможности технологии Apache Arrow для обработки и анализа
+больших данных, получил навыки применения Arrow совместно с языком
+программирования R. Получил навыки анализа метаинфомации о сетевом
+трафике. Получил навыки применения облачных технологий хранения,
+подготовки и анализа данных: Yandex Object Storage, Rstudio Server
