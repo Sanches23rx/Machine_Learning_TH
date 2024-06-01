@@ -41,6 +41,12 @@ SELECT SUM(bytes) as amount FROM yaqry1mdataset ls WHERE NOT (ls.src REGEXP '(^1
 
 ### Ответ: 12459379906
 
+``` r
+sprintf("The end")
+```
+
+    [1] "The end"
+
 ## Вывод
 
 Изучил возможности Yandex Query и закрепил навыки использования SQL для анализа данных сетевой активности
